@@ -10,6 +10,48 @@ const SECRET = "mysecret"; // Secret key for JWT
 let users = []; // Array to store users with bcrypt-hashed passwords
 
 // Registration route: Register a new user
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         password:
+ *           type: string
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         token:
+ *           type: string
+ */
+
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: User already exists
+ */
 router.post("/register", (req, res) => {
   const { name, password } = req.body;
 
@@ -32,6 +74,34 @@ router.post("/register", (req, res) => {
 });
 
 // Login route: Authenticate the user and return a JWT token
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Log in a user and return a JWT token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Successful login
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: Invalid credentials
+ */
 router.post("/login", (req, res) => {
   const { name, password } = req.body;
 
