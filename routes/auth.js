@@ -68,7 +68,7 @@ router.post("/register", (req, res) => {
   users.push({ name, password: hashedPassword });
 
   // Initialize user data for portfolio, transactions, etc.
-  usersData[name] = { capital: 1000, portfolio: {}, transactions: [] };
+  usersData[name] = { capital: 1000, portfolio: {}, transactions: [], history: [] };
 
   res.status(201).json({ message: "User registered successfully" });
 });

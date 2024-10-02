@@ -11,6 +11,8 @@ const app = express();
 
 app.use(cors()); // Enable CORS for all routes
 
+// Middleware to parse JSON bodies
+app.use(express.json());
 // Your existing routes and middleware...
 
 // Swagger definition
@@ -23,7 +25,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: "http://localhost:3000",
+      url: "http://10.67.4.46:3000",
       description: "Development server",
     },
   ],
@@ -55,7 +57,7 @@ app.use("/stocks", stockRoutes);
 app.use("/trade", tradeRoutes);
 
 // Start the server
-app.listen(3000, () => {
+app.listen(3000, '0.0.0.0', () => {
   console.log("Server is running on http://localhost:3000");
   console.log("Swagger docs available at http://localhost:3000/docs");
 });

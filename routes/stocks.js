@@ -1,59 +1,63 @@
 const express = require("express");
 const router = express.Router();
 const authenticate = require("./auth").authenticate;
+const usersData = require("./auth").usersData;
 
 /**
  * Market factors you can manage easily
  */
-const marketEventMin = 10; // Minimum market event strength
-const marketEventMax = 30; // Maximum market event strength
+const marketEventMin = 20; // Minimum market event strength
+const marketEventMax = 50; // Maximum market event strength
 const meanPrice = 100; // Baseline price for mean reversion
 const maxPriceChangePercent = 0.1; // Maximum price change in a single update (10% of current price)
 const meanReversionRate = 0.05; // 5% pull towards the mean price each update
-const momentumDecayMin = 0.85; // Minimum momentum decay factor (15%)
-const momentumDecayMax = 0.95; // Maximum momentum decay factor (5%)
+const momentumDecayMin = 0.6; // Minimum momentum decay factor (15%)
+const momentumDecayMax = 0.8; // Maximum momentum decay factor (5%)
 const slowingFactor = 0.3; // Slows down the price change by reducing its effect (set to 1 for normal speed)
+
+const getRandomVolatility = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min * 2;
 
 let stocks = [
   {
     id: 1,
-    name: "Stock A",
+    name: "Byte Buffs Inc",
     price: 100,
     momentum: { amount: 0 },
-    volatility: 2,
+    volatility: getRandomVolatility(7, 8), // Moderate volatility
   },
   {
     id: 2,
-    name: "Stock B",
+    name: "Algorithm Aces Ltd",
     price: 100,
     momentum: { amount: 0 },
-    volatility: 3,
+    volatility: getRandomVolatility(10, 12), // Higher volatility
   },
   {
     id: 3,
-    name: "Stock C",
+    name: "Cyber Savants Corp",
     price: 100,
     momentum: { amount: 0 },
-    volatility: 2,
+    volatility: getRandomVolatility(5, 6), // Lower volatility
   },
   {
     id: 4,
-    name: "Stock D",
+    name: "Data Dynamos Co",
     price: 100,
     momentum: { amount: 0 },
-    volatility: 10,
+    volatility: getRandomVolatility(5, 10), // Moderate to high volatility
   },
   {
     id: 5,
-    name: "Stock E",
+    name: "Pixel Pioneers LLC",
     price: 100,
     momentum: { amount: 0 },
-    volatility: 1,
+    volatility: getRandomVolatility(6, 7), // Moderate volatility
   },
 ];
 
 // In-memory stock history
 let stockHistory = [];
+const marketEvents = [];
 
 /**
  * Adjust momentum of a stock.
@@ -70,6 +74,7 @@ function adjustMomentum(stock, amount) {
  */
 function updateStockPrices() {
   stocks.forEach((stock) => {
+    console.log(stock.name, stock.momentum.amount)
     // Apply momentum as a percentage of the current stock price
     const randomFactor = 0.8 + Math.random() * 0.4; // Random factor between 0.8 and 1.2
     const randomFluctuation =
@@ -108,7 +113,7 @@ function updateStockPrices() {
     // Momentum decay - random decay factor between 5% and 15%, scaled by slowingFactor
     const randomDecay =
       momentumDecayMin + Math.random() * (momentumDecayMax - momentumDecayMin);
-    stock.momentum.amount *= randomDecay * slowingFactor;
+    stock.momentum.amount *= randomDecay;
 
     // Log the updated stock price to history
     const { id, name, price } = stock;
@@ -143,13 +148,32 @@ function triggerMarketEvent() {
   });
 
   console.log(`Market ${eventType} affecting ${affectedStocks.length} stocks!`);
+  marketEvents.push({ type: eventType, stocks: affectedStocks.map((s) => s.name), timestamp: new Date() });
+}
+
+function updateAllPlayerPortfolios() {
+   Object.keys(usersData).forEach((user) => {
+    let userData = usersData[user];
+    let portfolio = userData.portfolio;
+    let capital = userData.capital;
+    let totalValue = capital;
+    for (let stock of stocks) {
+      if (portfolio[stock.name]) {
+        totalValue += stock.price * portfolio[stock.name];
+      }
+    }
+    userData.history = userData.history || [];
+    userData.history.push(totalValue);
+    userData.currentValue = totalValue;
+  });
 }
 
 // Update stock prices every second
 setInterval(() => {
   updateStockPrices();
+  updateAllPlayerPortfolios(); 
   if (
-    Math.random() < 0.2 &&
+    Math.random() < 1/10 &&
     stocks.filter((s) => s.momentum.amount > marketEventMin).length == 0
   ) {
     // Very rare event
@@ -222,8 +246,15 @@ router.get("/", (req, res) => {
  *         description: Invalid token
  */
 router.get("/history", (req, res) => {
-  res.json(stockHistory);
+  res.json(stockHistory.slice(stockHistory.length - 5*300, stockHistory.length -1));
+  // res.json(stockHistory);
+});
+
+router.get("/events", (req, res) => {
+  res.json(marketEvents);
+
 });
 
 module.exports = router;
 module.exports.stocks = stocks;
+module.exports.adjustMomentum = adjustMomentum;

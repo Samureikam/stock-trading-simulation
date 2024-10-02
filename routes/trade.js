@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authenticate = require("./auth").authenticate;
 const stocks = require("./stocks").stocks;
+const adjustMomentum = require("./stocks").adjustMomentum;
 const usersData = require("./auth").usersData;
 
 // Helper function to get user data safely, returning an error if not found
@@ -15,6 +16,8 @@ function getUserData(user, res) {
   }
   return userData;
 }
+
+const buySellEffect = 1;
 
 // Get user portfolio and capital
 /**
@@ -53,12 +56,20 @@ router.get("/me", authenticate, (req, res) => {
   const userData = getUserData(user, res);
   // populate the transactions with the current price of the stock
   userData.transactions = userData.transactions.map((tx) => {
-    const stock = stocks.find((s) => s.name === tx.stock);
+    const stock = stocks.find((s) => s.name === tx.stock.name);
     return {
       ...tx,
       currentPrice: stock.price,
     };
   });
+  // calculate the actual portfolio value of a user
+  userData.portfolioValue = Object.keys(userData.portfolio).reduce(
+    (total, stockName) => {
+      const stock = stocks.find((s) => s.name === stockName);
+      return total + stock.price * userData.portfolio[stockName];
+    },
+    userData.capital
+  );
   if (userData) {
     res.json(userData);
   }
@@ -91,7 +102,7 @@ router.get("/me", authenticate, (req, res) => {
  *     summary: Buy a stock
  *     tags: [Trade]
  *     security:
-  *       - tokenAuth: []  # Custom auth using token only
+ *       - tokenAuth: []  # Custom auth using token only
  *     requestBody:
  *       required: true
  *       content:
@@ -136,6 +147,8 @@ router.post("/buy", authenticate, (req, res) => {
       status: "open",
     });
 
+    adjustMomentum(stock, amount * buySellEffect);
+
     res.json({
       message: `Bought ${amount} of ${stock.name} at CHF ${stock.price}`,
       userData,
@@ -153,7 +166,7 @@ router.post("/buy", authenticate, (req, res) => {
  *     summary: Sell a stock
  *     tags: [Trade]
  *     security:
-  *       - tokenAuth: []  # Custom auth using token only
+ *       - tokenAuth: []  # Custom auth using token only
  *     requestBody:
  *       required: true
  *       content:
@@ -193,7 +206,11 @@ router.post("/sell", authenticate, (req, res) => {
 
   // Iterate through open buy transactions in FIFO order and sell stocks
   for (let tx of userData.transactions) {
-    if (tx.stock === stock.name && tx.status === "open" && amountToSell > 0) {
+    if (
+      tx.stock.name === stock.name &&
+      tx.status === "open" &&
+      amountToSell > 0
+    ) {
       const sellAmount = Math.min(tx.amount, amountToSell); // Sell as much as possible from this batch
       const profit = sellAmount * stock.price;
 
@@ -212,6 +229,8 @@ router.post("/sell", authenticate, (req, res) => {
   userData.portfolio[stock.name] -= amount;
   userData.capital += totalProfit;
 
+  adjustMomentum(stock, -amount * buySellEffect);
+
   res.json({
     message: `Sold ${amount} of ${stock.name} at CHF ${stock.price}`,
     userData,
@@ -226,7 +245,7 @@ router.post("/sell", authenticate, (req, res) => {
  *     summary: Get the transaction history for the authenticated user
  *     tags: [Trade]
  *     security:
-  *       - tokenAuth: []  # Custom auth using token only
+ *       - tokenAuth: []  # Custom auth using token only
  *     responses:
  *       200:
  *         description: Transaction history retrieved successfully
@@ -255,7 +274,7 @@ router.get("/transactions", authenticate, (req, res) => {
  *     summary: Get capital and portfolio information of all players
  *     tags: [Trade]
  *     security:
-  *       - tokenAuth: []  # Custom auth using token only
+ *       - tokenAuth: []  # Custom auth using token only
  *     responses:
  *       200:
  *         description: Players' capital and portfolio information retrieved successfully
@@ -275,12 +294,20 @@ router.get("/transactions", authenticate, (req, res) => {
  *                     additionalProperties:
  *                       type: integer
  */
-router.get("/players", authenticate, (req, res) => {
+router.get("/players", (req, res) => {
   const playersData = Object.keys(usersData).map((user) => ({
     user,
     capital: usersData[user].capital,
     portfolio: usersData[user].portfolio,
+    portfolioValue: Object.keys(usersData[user].portfolio).reduce(
+      (total, stockName) => {
+        const stock = stocks.find((s) => s.name === stockName);
+        return total + stock.price * usersData[user].portfolio[stockName];
+      },
+      usersData[user].capital
+    ),
   }));
+  playersData.sort((a, b) => b.portfolioValue - a.portfolioValue);
   res.json(playersData);
 });
 
