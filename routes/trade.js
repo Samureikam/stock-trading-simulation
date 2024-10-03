@@ -5,6 +5,8 @@ const stocks = require("./stocks").stocks;
 const adjustMomentum = require("./stocks").adjustMomentum;
 const usersData = require("./auth").usersData;
 
+const buySellEffect = 0;
+
 // Helper function to get user data safely, returning an error if not found
 function getUserData(user, res) {
   const userData = usersData[user];
@@ -17,7 +19,6 @@ function getUserData(user, res) {
   return userData;
 }
 
-const buySellEffect = 1;
 
 // Get user portfolio and capital
 /**
@@ -130,31 +131,38 @@ router.post("/buy", authenticate, (req, res) => {
   const userData = getUserData(user, res);
   if (!userData) return;
 
-  const cost = stock.price * amount;
+  let cost = stock.price * amount;
 
-  if (userData.capital >= cost) {
+  // If the user doesn't have enough capital, buy as many as possible
+  let actualAmount = amount;
+  if (userData.capital < cost) {
+    actualAmount = Math.floor(userData.capital / stock.price);
+    cost = stock.price * actualAmount;
+  }
+
+  if (actualAmount > 0) {
     userData.capital -= cost;
     userData.portfolio[stock.name] =
-      (userData.portfolio[stock.name] || 0) + amount;
+      (userData.portfolio[stock.name] || 0) + actualAmount;
 
     // Add a new transaction (batch) to the user's transaction history
     userData.transactions.push({
       stock: stock,
-      amount,
-      initialAmount: amount,
+      amount: actualAmount,
+      initialAmount: actualAmount,
       buyPrice: stock.price,
       sellPrice: null, // Not sold yet
       status: "open",
     });
 
-    adjustMomentum(stock, amount * buySellEffect);
+    adjustMomentum(stock, actualAmount * buySellEffect);
 
     res.json({
-      message: `Bought ${amount} of ${stock.name} at CHF ${stock.price}`,
+      message: `Bought ${actualAmount} of ${stock.name} at CHF ${stock.price}`,
       userData,
     });
   } else {
-    res.status(400).json({ message: "Insufficient capital" });
+    res.status(400).json({ message: "Insufficient capital to buy any stocks" });
   }
 });
 
@@ -194,14 +202,14 @@ router.post("/sell", authenticate, (req, res) => {
   const userData = getUserData(user, res);
   if (!userData) return;
 
-  if (
-    !userData.portfolio[stock.name] ||
-    userData.portfolio[stock.name] < amount
-  ) {
+  const availableAmount = userData.portfolio[stock.name] || 0;
+  let amountToSell = Math.min(amount, availableAmount);
+  let initialAmountToSell = amountToSell;
+
+  if (amountToSell === 0) {
     return res.status(400).json({ message: "Insufficient stock holdings" });
   }
 
-  let amountToSell = amount;
   let totalProfit = 0;
 
   // Iterate through open buy transactions in FIFO order and sell stocks
@@ -226,13 +234,13 @@ router.post("/sell", authenticate, (req, res) => {
     }
   }
 
-  userData.portfolio[stock.name] -= amount;
+  userData.portfolio[stock.name] -= initialAmountToSell;
   userData.capital += totalProfit;
 
-  adjustMomentum(stock, -amount * buySellEffect);
+  adjustMomentum(stock, -initialAmountToSell * buySellEffect);
 
   res.json({
-    message: `Sold ${amount} of ${stock.name} at CHF ${stock.price}`,
+    message: `Sold ${initialAmountToSell} of ${stock.name} at CHF ${stock.price}`,
     userData,
   });
 });

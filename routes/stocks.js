@@ -6,8 +6,8 @@ const usersData = require("./auth").usersData;
 /**
  * Market factors you can manage easily
  */
-const marketEventMin = 20; // Minimum market event strength
-const marketEventMax = 50; // Maximum market event strength
+const marketEventMin = 30; // Minimum market event strength
+const marketEventMax = 60; // Maximum market event strength
 const meanPrice = 100; // Baseline price for mean reversion
 const maxPriceChangePercent = 0.1; // Maximum price change in a single update (10% of current price)
 const meanReversionRate = 0.05; // 5% pull towards the mean price each update
@@ -16,6 +16,29 @@ const momentumDecayMax = 0.8; // Maximum momentum decay factor (5%)
 const slowingFactor = 0.3; // Slows down the price change by reducing its effect (set to 1 for normal speed)
 
 const getRandomVolatility = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min * 2;
+
+const eventTypeMessages = [
+  "The market has witnessed a {eventType}, causing widespread concern.",
+  "Experts are warning that a {eventType} is imminent, brace yourself!",
+  "A sudden {eventType} has shaken the confidence of investors.",
+  "Rumors of a {eventType} are spreading like wildfire in the market.",
+  "Traders are scrambling to adjust as a {eventType} takes hold.",
+  "A {eventType} has caused a massive sell-off in key stocks.",
+  "The economy is showing signs of a {eventType}, disrupting normal trading.",
+  "A {eventType} has triggered panic buying across sectors.",
+  "This unexpected {eventType} has sent shockwaves through the market.",
+  "Investors are reacting to the latest {eventType} with caution.",
+  "The ongoing {eventType} is fueling market volatility.",
+  "A {eventType} is brewing, leaving investors on edge.",
+  "Reports of a {eventType} have caused a flurry of trading activity.",
+  "The {eventType} has spurred a chain reaction of stock price fluctuations.",
+  "A {eventType} is looming, and the market is struggling to stabilize.",
+  "The market is reeling from the effects of a {eventType}.",
+  "A massive {eventType} has thrown the market into chaos.",
+  "There are signs of a {eventType}, pushing traders to make bold moves.",
+  "The {eventType} has resulted in a surge of market speculation.",
+  "A {eventType} has created opportunities for savvy traders to capitalize.",
+];
 
 let stocks = [
   {
@@ -74,7 +97,6 @@ function adjustMomentum(stock, amount) {
  */
 function updateStockPrices() {
   stocks.forEach((stock) => {
-    console.log(stock.name, stock.momentum.amount)
     // Apply momentum as a percentage of the current stock price
     const randomFactor = 0.8 + Math.random() * 0.4; // Random factor between 0.8 and 1.2
     const randomFluctuation =
@@ -148,7 +170,17 @@ function triggerMarketEvent() {
   });
 
   console.log(`Market ${eventType} affecting ${affectedStocks.length} stocks!`);
-  marketEvents.push({ type: eventType, stocks: affectedStocks.map((s) => s.name), timestamp: new Date() });
+const randomMessage = eventTypeMessages[
+  Math.floor(Math.random() * eventTypeMessages.length)
+].replace("{eventType}", eventType);
+
+marketEvents.push({
+  id: marketEvents.length,
+  type: eventType,
+  stocks: affectedStocks.map((s) => s.name),
+  timestamp: new Date(),
+  message: randomMessage,
+});
 }
 
 function updateAllPlayerPortfolios() {
@@ -173,8 +205,8 @@ setInterval(() => {
   updateStockPrices();
   updateAllPlayerPortfolios(); 
   if (
-    Math.random() < 1/10 &&
-    stocks.filter((s) => s.momentum.amount > marketEventMin).length == 0
+    Math.random() < 1/20 &&
+    stocks.filter((s) => s.momentum.amount > 5).length == 0
   ) {
     // Very rare event
     triggerMarketEvent();
@@ -251,7 +283,7 @@ router.get("/history", (req, res) => {
 });
 
 router.get("/events", (req, res) => {
-  res.json(marketEvents);
+  res.json(marketEvents.sort((a, b) => b.timestamp - a.timestamp));
 
 });
 
