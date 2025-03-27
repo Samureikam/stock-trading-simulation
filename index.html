@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Price Chart & Top Players</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: auto;
+        padding: 20px;
+      }
+      canvas {
+        max-width: 100%;
+      }
+      .players {
+        margin-top: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid black;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Stock Prices Over Time</h1>
+    <div style="display: flex; gap: 20px">
+      <canvas id="stockChart" style="flex: 2"></canvas>
+
+      <div class="players" style="flex: 1">
+        <h2>Top Players by Portfolio Value</h2>
+        <table id="playersTable">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Portfolio Value (CHF)</th>
+              <th>Capital (CHF)</th>
+              <th>Profit / Loss</th>
+              <th>Stocks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Top players will be dynamically populated here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="marketEvents" style="margin-top: 20px"></div>
+
+    <script>
+      let stockChart; // Global reference to the chart
+
+      // Fetch stock data from the API
+      async function fetchStockData() {
+        try {
+          const response = await fetch("http://localhost:3000/stocks/history");
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error("Error fetching stock data:", error);
+          return [];
+        }
+      }
+
+      // Fetch player data from the API
+      async function fetchPlayerData() {
+        try {
+          const response = await fetch("http://localhost:3000/trade/players");
+          const players = await response.json();
+          console.log(players);
+          return players;
+        } catch (error) {
+          console.error("Error fetching player data:", error);
+          return [];
+        }
+      }
+
+      // Generate the chart for the first time
+      async function generateChart() {
+        const stockData = await fetchStockData();
+
+        if (stockData.length === 0) {
+          alert("No data available");
+          return;
+        }
+
+        // Group data by stock name and collect price and timestamps
+        const stocksByName = {};
+        stockData.forEach((item) => {
+          if (!stocksByName[item.name]) {
+            stocksByName[item.name] = { prices: [], timestamps: [] };
+          }
+          stocksByName[item.name].prices.push(item.price);
+          stocksByName[item.name].timestamps.push(
+            new Date(item.timestamp).toLocaleTimeString()
+          );
+        });
+
+        // Prepare data for Chart.js
+        const datasets = Object.keys(stocksByName)
+          .sort((a, b) => a - b)
+          .map((stockName, index) => {
+            return {
+              label: stockName,
+              data: stocksByName[stockName].prices,
+              borderColor: getRandomColor(index),
+              fill: false,
+            };
+          });
+
+        const labels = stocksByName[Object.keys(stocksByName)[0]].timestamps; // Use timestamps of any stock for labels
+
+        const ctx = document.getElementById("stockChart").getContext("2d");
+        stockChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                display: true,
+                title: {
+                  display: true,
+                  text: "Time",
+                },
+              },
+              y: {
+                display: true,
+                title: {
+                  display: true,
+                  text: "Price (CHF)",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Display the top players sorted by portfolio value
+      async function displayTopPlayers() {
+        const players = await fetchPlayerData();
+
+        // Sort players by portfolio value in descending order
+        players.sort((a, b) => b.portfolioValue - a.portfolioValue);
+
+        const tableBody = document.querySelector("#playersTable tbody");
+        tableBody.innerHTML = ""; // Clear any previous rows
+        /*
+       "portfolio": {
+      "Byte Buffs Inc": 6
+    },*/
+
+        players.forEach((player) => {
+          const row = document.createElement("tr");
+          const profit = player.portfolioValue - 1000;
+
+          // Get stock colors from chart datasets
+          const stockColors = {};
+          if (stockChart && stockChart.data.datasets) {
+            stockChart.data.datasets.forEach((dataset) => {
+              stockColors[dataset.label] = dataset.borderColor;
+            });
+          }
+
+          row.innerHTML = `
+          <td>${player.user}</td>
+          <td>CHF ${player.portfolioValue}.-</td>
+          <td>CHF ${player.capital}.-</td>
+          <td style="color: ${
+            profit < 0 ? "red" : "green"
+          }; font-weight: bold">${profit > 0 ? "+" : "-"} CHF ${Math.abs(
+            profit
+          )}.-</td>
+          <td>
+            ${Object.keys(player.portfolio)
+              .filter((stock) => player.portfolio[stock] > 0)
+              .map(
+                (stock) =>
+                  `<span style="color: ${
+                    stockColors[stock] || "black"
+                  }">${stock} (${player.portfolio[stock]})</span>`
+              )
+              .join(", ")}
+          </td>
+        `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // Update chart with new data
+      async function updateChart() {
+        const stockData = await fetchStockData();
+
+        if (stockData.length === 0) return;
+
+        const stocksByName = {};
+        stockData.forEach((item) => {
+          if (!stocksByName[item.name]) {
+            stocksByName[item.name] = { prices: [], timestamps: [] };
+          }
+          stocksByName[item.name].prices.push(item.price);
+          stocksByName[item.name].timestamps.push(
+            new Date(item.timestamp).toLocaleTimeString()
+          );
+        });
+
+        const labels = stocksByName[Object.keys(stocksByName)[0]].timestamps;
+
+        stockChart.data.labels = labels; // Update the labels (timestamps)
+
+        // Update dataset for each stock
+        stockChart.data.datasets.forEach((dataset) => {
+          dataset.data = stocksByName[dataset.label].prices;
+        });
+
+        stockChart.update(); // Re-render the chart
+      }
+
+      // Generate a random color for each stock line
+      const colors = [
+        "#8e44ad", // Wisteria
+        "#3498db", // Peter River
+        "#2ecc71", // Emerald
+        "#e67e22", // Carrot
+        "#e74c3c", // Alizarin
+        "#f1c40f", // Sun Flower
+        "#1abc9c", // Turquoise
+        "#2c3e50", // Midnight Blue
+        "#d35400", // Pumpkin
+        "#c0392b", // Pomegranate
+        "#16a085", // Green Sea
+        "#27ae60", // Nephritis
+        "#2980b9", // Belize Hole
+        "#8e44ad", // Wisteria
+        "#f39c12", // Orange
+        "#d35400", // Pumpkin
+      ];
+      function getRandomColor(i) {
+        return colors[i];
+      }
+      // Fetch market events from the API
+      async function fetchMarketEvents() {
+        try {
+          const response = await fetch("http://localhost:3000/stocks/events");
+          const events = await response.json();
+          return events;
+        } catch (error) {
+          console.error("Error fetching market events:", error);
+          return [];
+        }
+      } // Display market events on the page
+      async function displayMarketEvents() {
+        const events = await fetchMarketEvents();
+        const eventContainer = document.createElement("div");
+        eventContainer.innerHTML = "<h2>Market Events</h2>";
+        events.forEach((event) => {
+          const eventElement = document.createElement("div");
+          eventElement.classList.add("event");
+          eventElement.style.color =
+            event.type === "crash"
+              ? "red"
+              : event.type === "bubble"
+              ? "green"
+              : "black";
+          eventElement.innerHTML = `
+      <p><strong>${new Date(event.timestamp).toLocaleString()}:</strong> ${
+            event.message
+          }</p>
+      <p><strong>Affected Stocks:</strong> ${event.stocks.join(", ")}</p>
+    `;
+          eventContainer.appendChild(eventElement);
+        });
+        document.getElementById("marketEvents").innerHTML =
+          eventContainer.innerHTML;
+      }
+      // Initialize the chart and set up auto-refresh
+      window.onload = async () => {
+        await generateChart(); // Generate the chart on page load
+        await displayTopPlayers(); // Display top players on page load
+        await displayMarketEvents(); // Display market events on page load
+        setInterval(() => {
+          updateChart();
+          displayTopPlayers();
+          displayMarketEvents(); // Update market events every 2 seconds
+        }, 2000); // Refresh every 2 seconds
+      };
+    </script>
+  </body>
+</html>

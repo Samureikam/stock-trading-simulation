@@ -7,7 +7,7 @@ const usersData = require("./auth").usersData;
  * Market factors you can manage easily
  */
 const marketEventMin = 30; // Minimum market event strength
-const marketEventMax = 60; // Maximum market event strength
+const marketEventMax = 80; // Maximum market event strength
 const meanPrice = 100; // Baseline price for mean reversion
 const maxPriceChangePercent = 0.1; // Maximum price change in a single update (10% of current price)
 const meanReversionRate = 0.05; // 5% pull towards the mean price each update
@@ -15,7 +15,8 @@ const momentumDecayMin = 0.6; // Minimum momentum decay factor (15%)
 const momentumDecayMax = 0.8; // Maximum momentum decay factor (5%)
 const slowingFactor = 0.3; // Slows down the price change by reducing its effect (set to 1 for normal speed)
 
-const getRandomVolatility = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min * 2;
+const getRandomVolatility = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min * 2;
 
 const eventTypeMessages = [
   "The market has witnessed a {eventType}, causing widespread concern.",
@@ -170,21 +171,21 @@ function triggerMarketEvent() {
   });
 
   console.log(`Market ${eventType} affecting ${affectedStocks.length} stocks!`);
-const randomMessage = eventTypeMessages[
-  Math.floor(Math.random() * eventTypeMessages.length)
-].replace("{eventType}", eventType);
+  const randomMessage = eventTypeMessages[
+    Math.floor(Math.random() * eventTypeMessages.length)
+  ].replace("{eventType}", eventType);
 
-marketEvents.push({
-  id: marketEvents.length,
-  type: eventType,
-  stocks: affectedStocks.map((s) => s.name),
-  timestamp: new Date(),
-  message: randomMessage,
-});
+  marketEvents.push({
+    id: marketEvents.length,
+    type: eventType,
+    stocks: affectedStocks.map((s) => s.name),
+    timestamp: new Date(),
+    message: randomMessage,
+  });
 }
 
 function updateAllPlayerPortfolios() {
-   Object.keys(usersData).forEach((user) => {
+  Object.keys(usersData).forEach((user) => {
     let userData = usersData[user];
     let portfolio = userData.portfolio;
     let capital = userData.capital;
@@ -203,16 +204,15 @@ function updateAllPlayerPortfolios() {
 // Update stock prices every second
 setInterval(() => {
   updateStockPrices();
-  updateAllPlayerPortfolios(); 
+  updateAllPlayerPortfolios();
   if (
-    Math.random() < 1/20 &&
+    Math.random() < 1 / 10 &&
     stocks.filter((s) => s.momentum.amount > 5).length == 0
   ) {
     // Very rare event
     triggerMarketEvent();
   }
 }, 2000);
-
 
 /**
  * @swagger
@@ -278,13 +278,14 @@ router.get("/", (req, res) => {
  *         description: Invalid token
  */
 router.get("/history", (req, res) => {
-  res.json(stockHistory.slice(stockHistory.length - 5*300, stockHistory.length -1));
+  res.json(
+    stockHistory.slice(stockHistory.length - 5 * 300, stockHistory.length - 1)
+  );
   // res.json(stockHistory);
 });
 
 router.get("/events", (req, res) => {
   res.json(marketEvents.sort((a, b) => b.timestamp - a.timestamp));
-
 });
 
 module.exports = router;

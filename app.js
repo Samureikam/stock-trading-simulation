@@ -5,7 +5,7 @@ const authRoutes = require("./routes/auth");
 const stockRoutes = require("./routes/stocks");
 const tradeRoutes = require("./routes/trade");
 
-const cors = require('cors'); // Import the CORS package
+const cors = require("cors"); // Import the CORS package
 
 const app = express();
 
@@ -25,7 +25,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: "http://localhost:3000",
+      url: "http://10.65.4.1:3000",
       description: "Development server",
     },
   ],
@@ -57,7 +57,7 @@ app.use("/stocks", stockRoutes);
 app.use("/trade", tradeRoutes);
 
 // Start the server
-app.listen(3000, '0.0.0.0', () => {
+app.listen(3000, "0.0.0.0", () => {
   console.log("Server is running on http://localhost:3000");
   console.log("Swagger docs available at http://localhost:3000/docs");
 });
