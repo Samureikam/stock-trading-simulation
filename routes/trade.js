@@ -19,7 +19,6 @@ function getUserData(user, res) {
   return userData;
 }
 
-
 // Get user portfolio and capital
 /**
  * @swagger
@@ -72,7 +71,10 @@ router.get("/me", authenticate, (req, res) => {
     userData.capital
   );
   if (userData) {
-    res.json(userData);
+    res.json({
+      username: user,
+      ...userData,
+    });
   }
 });
 
