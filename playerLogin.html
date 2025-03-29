@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auth System</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f4;
+        margin: 0;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 400px;
+      }
+      .frame {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        text-align: center;
+        display: none;
+      }
+      input {
+        width: 90%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      button:hover {
+        background: #218838;
+      }
+      .link {
+        margin-top: 15px;
+        color: #007bff;
+        cursor: pointer;
+        text-decoration: underline;
+        font-size: 14px;
+      }
+      .link:hover {
+        color: #0056b3;
+      }
+      .message {
+        margin-top: 10px;
+        font-size: 14px;
+      }
+      .error {
+        color: red;
+      }
+      .success {
+        color: green;
+      }
+    </style>
+    <script>
+      // Frame managment
+      function showFrame(frame) {
+        document.getElementById("register-frame").style.display = "none";
+        document.getElementById("login-frame").style.display = "none";
+
+        if (frame === "register") {
+          document.getElementById("register-frame").style.display = "block";
+        } else if (frame === "login") {
+          document.getElementById("login-frame").style.display = "block";
+        }
+      }
+
+      // Clears the inputs
+      function clearInputs() {
+        document.getElementById("reg-name").value = "";
+        document.getElementById("reg-password").value = "";
+        document.getElementById("login-name").value = "";
+        document.getElementById("login-password").value = "";
+      }
+
+      // register request
+      async function register() {
+        const name = document.getElementById("reg-name").value;
+        const password = document.getElementById("reg-password").value;
+        const messageElement = document.getElementById("register-message");
+
+        // Reset message display before each submission
+        messageElement.textContent = "";
+        messageElement.classList.remove("error", "success");
+
+        if (!name || !password) {
+          messageElement.textContent = "Please fill in all fields!";
+          messageElement.classList.add("error");
+          return;
+        }
+
+        const response = await fetch("http://localhost:3000/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, password }),
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          messageElement.textContent = "Registration successful!";
+          messageElement.classList.add("success");
+          clearInputs();
+        } else {
+          messageElement.textContent = data.message || "Registration failed!";
+          messageElement.classList.add("error");
+        }
+      }
+
+      // Login request
+      async function login() {
+        const name = document.getElementById("login-name").value;
+        const password = document.getElementById("login-password").value;
+        const messageElement = document.getElementById("login-message");
+
+        messageElement.textContent = "";
+        messageElement.classList.remove("error", "success");
+
+        if (!name || !password) {
+          messageElement.textContent = "Please fill in all fields!";
+          messageElement.classList.add("error");
+          return;
+        }
+
+        const response = await fetch("http://localhost:3000/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, password }),
+        });
+
+        const data = await response.json();
+        if (response.ok && data.token) {
+          localStorage.setItem("token", data.token);
+          window.location.href = "/playerDashboard.html";
+        } else {
+          messageElement.textContent = data.message || "Login failed!";
+          messageElement.classList.add("error");
+        }
+      }
+
+      // Standart frame
+      window.onload = function () {
+        showFrame("login");
+      };
+    </script>
+  </head>
+  <body>
+    <!-- Both frames -->
+    <div class="container">
+      <div class="frame" id="register-frame">
+        <h2>Register</h2>
+        <input type="text" id="reg-name" placeholder="Name" />
+        <input type="password" id="reg-password" placeholder="Password" />
+        <button onclick="register()">Register</button>
+        <div id="register-message" class="message"></div>
+        <div class="link" onclick="showFrame('login')">
+          Already have an account? Login
+        </div>
+      </div>
+      <div class="frame" id="login-frame">
+        <h2>Login</h2>
+        <input type="text" id="login-name" placeholder="Name" />
+        <input type="password" id="login-password" placeholder="Password" />
+        <button onclick="login()">Login</button>
+        <div id="login-message" class="message"></div>
+        <div class="link" onclick="showFrame('register')">
+          Don't have an account? Register
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
